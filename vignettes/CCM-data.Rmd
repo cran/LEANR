@@ -1,0 +1,69 @@
+---
+title: "LEAN on CCM data"
+author: "Frederik Gwinner"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{LEAN on CCM data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Run LEAN on the CCM data
+Loading package and necessary data 
+```{r, eval=FALSE}
+library(LEANR)
+set.seed(123456)
+# load network and CCM p-values
+data(g2)
+data(CCM.pvals)
+data(gene.annots)
+```
+
+```{r, echo=FALSE,include=FALSE}
+library(LEANR)
+set.seed(123456)
+# load network and CCM p-values
+data(g2)
+data(CCM.pvals)
+data(gene.annots)
+LEAN_results<-LEANR:::LEAN_results
+```
+
+Run LEAN on the precomputed differential expression p-values (computed using limma) in turn for each of the three CCM gene knock-out experiments. As we run these calculations with background distributions of size 10.000, they will take a little time depending on how many cores are available on your machine.
+
+```{r, eval=FALSE}
+LEAN_results<-lapply(names(CCM.pvals),function(ccm){
+  run.lean(CCM.pvals[[ccm]], g2, n_reps = 10000, ncores = 3)
+})
+names(LEAN_results)<-names(CCM.pvals)
+```
+
+
+Extract significant local subnetworks in each of the three experiments and show which local subnetworks are significant in all three knock-out experiments
+```{r}
+# Extract significant local subnetworks
+sign.genes<-lapply(LEAN_results,function(LEANres){
+  rownames(LEANres$restab[LEANres$restab[,'PLEAN']<=0.05,])
+})
+names(sign.genes)<-names(CCM.pvals)
+
+# Show local subnetworks detected as significant in all three knock-outs
+all.sign<-intersect(intersect(sign.genes[[1]],sign.genes[[2]]),sign.genes[[3]])
+print(gene.annots[all.sign,])
+```
+
+The local subnetwork around VWF is the only one significant in all three knock-outs.
+Now we extract the local subnetwork around VWF and create a Cytoscape-readable subnetwork file
+
+```{r, eval=FALSE}
+# Extract information on the detected local subnetwork (around VWF)
+vwf.ls.info<-get.ls.info(all.sign[1],LEAN_results$CCM2)
+print(head(vwf.ls.info))
+write.table(vwf.ls.info,'./VWF_subnetwork_info_CCM2.txt',sep='\t',quote=F,row.names=F)
+
+# Create sif file representing the local subnetwork around VWF
+write.ls.to.sif(all.sign[1],LEAN_results$CCM2,'./VWF_subnetwork.sif')
+```
+
+After completing these steps, the local subnetwork around VWF can be inspected in Cytoscape by loading the network from file <VWF_subnetwork.sif> and adding information about the contained genes by loading the table from file <VWF_subnetwork_info.txt>

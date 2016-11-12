@@ -1,0 +1,7 @@
+export('run.lean')
+export('write.ls.to.sif')
+export('get.ls.info')
+export('subnet.simulation')
+import(igraph, foreach)
+importFrom("stats", "p.adjust", "pbinom", "runif", "sd")
+importFrom("utils", "read.table", "write.table")
